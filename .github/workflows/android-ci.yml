@@ -1,0 +1,46 @@
+name: KMP Weather App CI/CD
+
+# 1. Déclencheurs : Le pipeline s'exécute à chaque Push ou Pull Request sur la branche 'main'
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    # 2. L'environnement : On utilise un serveur Ubuntu (plus rapide et moins cher).
+    # Note : Si on voulait tester spécifiquement iOS, on utiliserait 'macos-latest'.
+    runs-on: ubuntu-latest
+
+    steps:
+      # Étape A : Le serveur télécharge ton code
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      # Étape B : On installe l'environnement Java nécessaire à Android/Kotlin
+      - name: Configuration de Java (JDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # Étape C : Optimisation du cache Gradle pour accélérer les futurs builds
+      - name: Configuration de Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      # Étape D : LA VÉRIFICATION (Tests Unitaires et Linting)
+      - name: Lancement des Tests
+        run: ./gradlew check
+
+      # Étape E : LE DÉPLOIEMENT CONTINU (Génération de l'application)
+      - name: Build de l'APK Android
+        run: ./gradlew assembleDebug
+
+      # Étape F : SAUVEGARDE (On met l'APK à disposition pour le téléchargement)
+      - name: Sauvegarde de l'APK (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: weather-app-debug
+          # Le chemin où l'APK est généré par défaut dans un module Android standard
+          path: composeApp/build/outputs/apk/debug/*.apk
