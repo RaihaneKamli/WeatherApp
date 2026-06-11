@@ -1,5 +1,7 @@
 package com.application.mymeteo.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -13,9 +15,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Brightness5
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import com.application.mymeteo.weatherData.getWeatherDescription
 
 /**
  *
@@ -49,48 +55,58 @@ fun LoadingComponent() {
 // 4. Sous-composant de succès
 @Composable
 fun WeatherSuccessComponent(state: WeatherUiState.Success) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp), // Ajoute une belle ombre
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer // S'adapte au thème clair/sombre du téléphone
-        )
+    // 1. On enveloppe dans une Box pour centrer tout le bloc sur l'écran
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(32.dp) // Respiration interne
-        ) {
-            Icon(
-                imageVector = Icons.Default.LocationOn,
-                contentDescription = "Position",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = state.city,
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = state.temperature,
-                style = MaterialTheme.typography.displayLarge, // Température beaucoup plus grosse
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = state.description,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-            )
+        AnimatedContent(targetState = state, label = "weather_anim") { targetState ->
+            Card(
+                // 2. On utilise 0.9f (90%) pour laisser de l'air sur les côtés
+                modifier = Modifier.fillMaxWidth(0.9f),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+            ) {
+                Column(
+                    // 3. Padding interne pour que le texte ne colle pas aux bords de la carte
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    // 4. Centrage horizontal des éléments internes
+                ) {
+                    Text(
+                        targetState.city,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        targetState.temperature,
+                        style = MaterialTheme.typography.displayLarge
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = getWeatherDescription(targetState.description.toIntOrNull() ?: 0),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Icon(
+                        imageVector = if ((targetState.description.toIntOrNull() ?: 0) < 10) Icons.Default.Brightness5 else Icons.Default.Cloud,
+                        contentDescription = "Météo",
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
+
     }
 }
 
@@ -119,7 +135,19 @@ fun WeatherScreen(
     onRetryClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                        MaterialTheme.colorScheme.background
+                    )
+                )
+            )
+            .padding(16.dp)
+    ) {
 
         // 1. La barre de recherche (toujours visible en haut)
         OutlinedTextField(

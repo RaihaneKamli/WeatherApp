@@ -1,5 +1,6 @@
 package com.application.mymeteo.weatherData
 
+import androidx.compose.runtime.Composable
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 @Serializable
@@ -26,3 +27,15 @@ data class Location(
     val longitude: Double,
     val country: String
 )
+
+@Composable
+fun getWeatherDescription(code: Int): String {
+    return when (code) {
+        0 -> "Ciel clair"
+        1, 2, 3 -> "Partiellement nuageux"
+        45, 48 -> "Brouillard"
+        51, 53, 55 -> "Bruine"
+        61, 63, 65 -> "Pluie"
+        else -> "Conditions variables"
+    }
+}
