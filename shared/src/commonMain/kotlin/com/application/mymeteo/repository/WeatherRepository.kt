@@ -7,35 +7,31 @@ import com.application.mymeteo.weatherData.WeatherResponse
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
-import kotlinx.coroutines.flow.Flow
+import io.ktor.http.* import io.ktor.client.statement.* import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import io.ktor.http.* // Ajout pour isSuccess()
-import io.ktor.client.statement.* // Ajout important pour HttpResponse
-import kotlinx.coroutines.delay
-import io.ktor.client.*
 import kotlinx.coroutines.withTimeout
 
-// 1. L'interface
-
+// 1. L'interface mise à jour avec les deux fonctions nécessaires
 interface WeatherRepository {
-    fun getWeather(latitude: Double, longitude: Double): Flow<WeatherUiState>
+    suspend fun searchCityCoordinates(query: String): Location?
+    fun getWeather(cityName: String, latitude: Double, longitude: Double): Flow<WeatherUiState>
 }
 
-// 2. L'implémentation (Le vrai code réseau que tu as déjà.)
+// 2. L'implémentation propre
 class NetworkWeatherRepository(private val httpClient: HttpClient) : WeatherRepository {
 
-    // 1. Nouvelle fonction : Chercher les coordonnées d'une ville
-    suspend fun searchCityCoordinates(query: String): Location? {
+    // Chercher les coordonnées d'une ville (Géocodage)
+    override suspend fun searchCityCoordinates(query: String): Location? {
         return try {
             val response: HttpResponse = httpClient.get("https://geocoding-api.open-meteo.com/v1/search") {
                 parameter("name", query)
-                parameter("count", 1) // On ne veut que le 1er résultat
+                parameter("count", 1)
                 parameter("language", "fr")
             }
 
             if (response.status.isSuccess()) {
                 val data: GeocodingResponse = response.body()
-                data.results?.firstOrNull() // Retourne la ville ou null
+                data.results?.firstOrNull()
             } else {
                 null
             }
@@ -45,23 +41,23 @@ class NetworkWeatherRepository(private val httpClient: HttpClient) : WeatherRepo
         }
     }
 
-    // 2. On modifie getWeather pour prendre le nom de la ville au lieu de "Paris" en dur
-    fun getWeather(cityName: String, latitude: Double, longitude: Double): Flow<WeatherUiState> = flow {
+    // Récupérer la météo avec le nom de la ville et ses coordonnées
+    override fun getWeather(cityName: String, latitude: Double, longitude: Double): Flow<WeatherUiState> = flow {
         emit(WeatherUiState.Loading)
         try {
             withTimeout(3000L) {
-                val urlString =
-                    "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current=temperature_2m,weather_code"
+                val urlString = "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current=temperature_2m,weather_code"
 
                 val response: HttpResponse = httpClient.get(urlString) {
                     header(HttpHeaders.UserAgent, "MonAppMeteoEntretien/1.0")
+                    header(HttpHeaders.Accept, "application/json")
                 }
 
                 if (response.status.isSuccess()) {
                     val weatherData: WeatherResponse = response.body()
                     emit(
                         WeatherUiState.Success(
-                            city = cityName, // ON UTILISE LE VRAI NOM ICI
+                            city = cityName,
                             temperature = "${weatherData.current.temperature}°C",
                             description = "Code météo: ${weatherData.current.weathercode}"
                         )
@@ -74,43 +70,4 @@ class NetworkWeatherRepository(private val httpClient: HttpClient) : WeatherRepo
             emit(WeatherUiState.Error("Problème réseau : ${e.message}"))
         }
     }
-
-    override fun getWeather(latitude: Double, longitude: Double): Flow<WeatherUiState> = flow {
-        emit(WeatherUiState.Loading)
-        println("TRACKER 1 : Début de l'appel réseau")
-
-        try {
-            // Quoi qu'il arrive, le bloc s'arrête net.
-            withTimeout(2000L) {
-
-                val urlString = "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current=temperature_2m,weather_code"
-                println("@@@ hello url = $urlString")
-
-                val response: HttpResponse = httpClient.get(urlString) {
-                    header(HttpHeaders.UserAgent, "MonAppMeteoEntretien/1.0")
-                    header(HttpHeaders.Accept, "application/json")
-                }
-
-                println("TRACKER 2 : Réponse HTTP = ${response.status.value}")
-
-                if (response.status.isSuccess()) {
-                    val weatherData: WeatherResponse = response.body()
-                    emit(WeatherUiState.Success(
-                        city = "Paris",
-                        temperature = "${weatherData.current.temperature}°C",
-                        description = "Code météo: ${weatherData.current.weathercode}"
-                    ))
-                } else {
-                    emit(WeatherUiState.Error("Erreur serveur : Code ${response.status.value}"))
-                }
-            } // Fin du withTimeout
-
-        } catch (e: Exception) {
-            // Si le timeout des 3 secondes expire, une TimeoutCancellationException est levée et capturée ici !
-            println("TRACKER ERREUR : L'appel a été annulé ou a échoué -> ${e.message}")
-            e.printStackTrace()
-            emit(WeatherUiState.Error("Problème réseau (ou Timeout) : ${e.message}"))
-        }
-    }
 }
-

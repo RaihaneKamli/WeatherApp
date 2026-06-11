@@ -16,9 +16,11 @@ material3 = "1.11.0-alpha07"
 ktor = "3.5.0"
 kotlinx-serialization = "1.11.0"
 kamel = "1.0.9"
+materialIconsExtended = "1.7.3"
 turbine = "1.2.1"
 
 [libraries]
+androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
@@ -44,6 +46,7 @@ ktor-client-android = { module = "io.ktor:ktor-client-android",version.ref = "kt
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kamel-images = { module = "media.kamel:kamel-image-default", version.ref = "kamel" }
+material-icons-extended = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 
 [plugins]

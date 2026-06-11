@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class WeatherViewModel(
-    private val repository: NetworkWeatherRepository
+    private val repository: WeatherRepository
 ) : ViewModel() {
 
     // 1. État pour stocker ce que l'utilisateur tape dans la barre de recherche

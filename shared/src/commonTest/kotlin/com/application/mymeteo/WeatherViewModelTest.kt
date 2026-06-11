@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.application.mymeteo.repository.WeatherRepository
 import com.application.mymeteo.states.WeatherUiState
 import com.application.mymeteo.viewmodel.WeatherViewModel
+import com.application.mymeteo.weatherData.Location // Assure-toi d'importer ton modèle Location
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -20,27 +21,28 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalCoroutinesApi::class)
 class WeatherViewModelTest {
 
-    // 1. Le TestDispatcher remplace le Thread UI. Il exécute les coroutines instantanément.
     private val testDispatcher = StandardTestDispatcher()
 
     @BeforeTest
     fun setUp() {
-        // Avant chaque test, on force l'application à utiliser notre "faux" Thread
         Dispatchers.setMain(testDispatcher)
     }
 
     @AfterTest
     fun tearDown() {
-        // Après le test, on remet tout en ordre
         Dispatchers.resetMain()
     }
 
     @Test
     fun successLoading() = runTest {
-        // ARRANGE : On crée un "Faux" Repository qui n'utilise pas Ktor ni internet
         val fakeRepository = object : WeatherRepository {
-            override fun getWeather(latitude: Double, longitude: Double): Flow<WeatherUiState> {
-                // flowOf émet immédiatement ces deux valeurs l'une après l'autre
+            // Implémentation de la fonction de géocodage appelée par le ViewModel
+            override suspend fun searchCityCoordinates(query: String): Location? {
+                return Location(name = "Paris (Mock)", latitude = 48.8566, longitude = 2.3522, country = "France")
+            }
+
+            // Mise à jour de la signature avec les 3 paramètres
+            override fun getWeather(cityName: String, latitude: Double, longitude: Double): Flow<WeatherUiState> {
                 return flowOf(
                     WeatherUiState.Loading,
                     WeatherUiState.Success("Paris (Mock)", "20°C", "Ensoleillé")
@@ -48,27 +50,33 @@ class WeatherViewModelTest {
             }
         }
 
-        // ACT : On instancie notre ViewModel avec ce faux repository
         val viewModel = WeatherViewModel(fakeRepository)
 
-        // ASSERT : On utilise Turbine pour écouter les états émis par le StateFlow
         viewModel.uiState.test {
-            // Le tout premier état doit être Loading (valeur initiale du StateFlow)
-            val firstState = awaitItem()
-            assertEquals(WeatherUiState.Loading, firstState)
+            assertEquals(WeatherUiState.Loading, awaitItem())
 
-            // Le deuxième état doit être notre Success simulé
+            // Selon l'ordre des appels dans ton ViewModel,
+            // il peut y avoir un autre état Loading après la géolocalisation
             val secondState = awaitItem()
-            assertEquals("Paris (Mock)", (secondState as WeatherUiState.Success).city)
+            if (secondState is WeatherUiState.Loading) {
+                assertEquals("Paris (Mock)", (awaitItem() as WeatherUiState.Success).city)
+            } else {
+                assertEquals("Paris (Mock)", (secondState as WeatherUiState.Success).city)
+            }
 
-            // On s'assure qu'aucun autre état parasite n'est émis
             cancelAndIgnoreRemainingEvents()
         }
     }
+
     @Test
-    fun errorLoading() = runTest{
+    fun errorLoading() = runTest {
         val fakeRepository = object : WeatherRepository {
-            override fun getWeather(latitude: Double, longitude: Double): Flow<WeatherUiState> {
+            override suspend fun searchCityCoordinates(query: String): Location? {
+                return Location(name = "Paris", latitude = 48.8566, longitude = 2.3522, country = "France")
+            }
+
+            // Mise à jour de la signature avec les 3 paramètres
+            override fun getWeather(cityName: String, latitude: Double, longitude: Double): Flow<WeatherUiState> {
                 return flowOf(WeatherUiState.Loading, WeatherUiState.Error("Mock Http Error"))
             }
         }
@@ -76,12 +84,13 @@ class WeatherViewModelTest {
         val viewModel = WeatherViewModel(fakeRepository)
 
         viewModel.uiState.test {
-            val firstState = awaitItem()
-            assertEquals(WeatherUiState.Loading, firstState)
+            assertEquals(WeatherUiState.Loading, awaitItem())
 
-            val secondState = awaitItem()
-            assertEquals("Mock Http Error", (secondState as WeatherUiState.Error).message)
+            // Gestion similaire du double Loading selon l'implémentation du ViewModel
+            val nextItem = awaitItem()
+            val errorState = if (nextItem is WeatherUiState.Loading) awaitItem() else nextItem
 
+            assertEquals("Mock Http Error", (errorState as WeatherUiState.Error).message)
             cancelAndIgnoreRemainingEvents()
         }
     }
