@@ -29,15 +29,19 @@ jobs:
       - name: Configuration de Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      # Étape D : LA VÉRIFICATION (Tests Unitaires et Linting)
+      # Étape D : La permission d'exécution
+      - name: Rendre gradlew exécutable
+        run: chmod +x gradlew
+
+      # Étape E : La vérification (Tests Unitaires et Linting)
       - name: Lancement des Tests
         run: ./gradlew check
 
-      # Étape E : LE DÉPLOIEMENT CONTINU (Génération de l'application)
+      # Étape F : Déploiement continu (Génération de l'application)
       - name: Build de l'APK Android
         run: ./gradlew assembleDebug
 
-      # Étape F : SAUVEGARDE (On met l'APK à disposition pour le téléchargement)
+      # Étape G : Sauvegarde (On met l'APK à disposition pour le téléchargement)
       - name: Sauvegarde de l'APK (Artifact)
         uses: actions/upload-artifact@v4
         with:
