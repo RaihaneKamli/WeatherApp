@@ -8,9 +8,9 @@ import androidx.compose.ui.Modifier
 import com.application.mymeteo.states.WeatherUiState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.unit.dp
-import mymeteo.shared.generated.resources.Res
-import org.jetbrains.compose.resources.getString
-
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 /**
  *
  * @param uiState State from UI
@@ -70,3 +70,49 @@ fun ErrorComponent(message: String, onRetry: () -> Unit) {
         }
     }
 }
+
+@Composable
+fun WeatherScreen(
+    uiState: WeatherUiState,
+    searchQuery: String,                    // Nouvel état reçu
+    onSearchQueryChange: (String) -> Unit,  // Nouvel événement
+    onSearchClick: () -> Unit,              // Nouvel événement
+    onRetryClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
+
+        // 1. La barre de recherche (toujours visible en haut)
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            label = { Text("Rechercher une ville") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(
+                onSearch = { onSearchClick() }
+            ),
+            trailingIcon = {
+                Button(onClick = onSearchClick) {
+                    Text("Go")
+                }
+            }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 2. La zone de contenu (prend le reste de l'espace)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            when (uiState) {
+                is WeatherUiState.Loading -> LoadingComponent()
+                is WeatherUiState.Success -> WeatherSuccessComponent(state = uiState)
+                is WeatherUiState.Error -> ErrorComponent(message = uiState.message, onRetry = onRetryClick)
+            }
+        }
+    }
+}
+

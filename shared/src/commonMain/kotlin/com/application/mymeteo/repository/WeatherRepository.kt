@@ -1,6 +1,8 @@
 package com.application.mymeteo.repository
 
 import com.application.mymeteo.states.WeatherUiState
+import com.application.mymeteo.weatherData.GeocodingResponse
+import com.application.mymeteo.weatherData.Location
 import com.application.mymeteo.weatherData.WeatherResponse
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -21,6 +23,58 @@ interface WeatherRepository {
 
 // 2. L'implémentation (Le vrai code réseau que tu as déjà.)
 class NetworkWeatherRepository(private val httpClient: HttpClient) : WeatherRepository {
+
+    // 1. Nouvelle fonction : Chercher les coordonnées d'une ville
+    suspend fun searchCityCoordinates(query: String): Location? {
+        return try {
+            val response: HttpResponse = httpClient.get("https://geocoding-api.open-meteo.com/v1/search") {
+                parameter("name", query)
+                parameter("count", 1) // On ne veut que le 1er résultat
+                parameter("language", "fr")
+            }
+
+            if (response.status.isSuccess()) {
+                val data: GeocodingResponse = response.body()
+                data.results?.firstOrNull() // Retourne la ville ou null
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    // 2. On modifie getWeather pour prendre le nom de la ville au lieu de "Paris" en dur
+    fun getWeather(cityName: String, latitude: Double, longitude: Double): Flow<WeatherUiState> = flow {
+        emit(WeatherUiState.Loading)
+        try {
+            withTimeout(3000L) {
+                val urlString =
+                    "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current=temperature_2m,weather_code"
+
+                val response: HttpResponse = httpClient.get(urlString) {
+                    header(HttpHeaders.UserAgent, "MonAppMeteoEntretien/1.0")
+                }
+
+                if (response.status.isSuccess()) {
+                    val weatherData: WeatherResponse = response.body()
+                    emit(
+                        WeatherUiState.Success(
+                            city = cityName, // ON UTILISE LE VRAI NOM ICI
+                            temperature = "${weatherData.current.temperature}°C",
+                            description = "Code météo: ${weatherData.current.weathercode}"
+                        )
+                    )
+                } else {
+                    emit(WeatherUiState.Error("Erreur serveur : Code ${response.status.value}"))
+                }
+            }
+        } catch (e: Exception) {
+            emit(WeatherUiState.Error("Problème réseau : ${e.message}"))
+        }
+    }
+
     override fun getWeather(latitude: Double, longitude: Double): Flow<WeatherUiState> = flow {
         emit(WeatherUiState.Loading)
         println("TRACKER 1 : Début de l'appel réseau")

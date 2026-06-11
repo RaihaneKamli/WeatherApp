@@ -34,32 +34,30 @@ import kotlinx.serialization.json.Json
 @Composable
 @Preview
 fun App() {
-    // 1. Configuration du client Ktor avec le plugin de sérialisation JSON
     val httpClient = remember {
         HttpClient {
             install(ContentNegotiation) {
                 json(Json { ignoreUnknownKeys = true })
             }
-            // AJOUT DU TIMEOUT : Force une erreur si le serveur ne répond pas en 10s
             install(HttpTimeout) {
-                requestTimeoutMillis = 2000
+                requestTimeoutMillis = 3000 // 3 secondes
             }
         }
     }
 
-    // 2. Instanciation de la couche Data (Repository)
     val repository = remember { NetworkWeatherRepository(httpClient) }
-
-    // 3. Instanciation du ViewModel (Cerveau)
     val viewModel = remember { WeatherViewModel(repository) }
 
-    // 4. Le Lien Magique : On convertit le StateFlow du ViewModel en un State Compose
-    // À chaque fois que le StateFlow change, l'UI va se redessiner (recomposition)
+    // On écoute les deux états du ViewModel
     val uiState by viewModel.uiState.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
 
-    // 5. On affiche notre écran en lui passant l'état et l'action à mener en cas de clic
+    // On connecte les états et événements au composant visuel
     WeatherScreen(
         uiState = uiState,
-        onRetryClick = { viewModel.loadWeather() }
+        searchQuery = searchQuery,
+        onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+        onSearchClick = { viewModel.onSearchClick() },
+        onRetryClick = { viewModel.onSearchClick() } // Relance la recherche actuelle
     )
 }
