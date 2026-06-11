@@ -1,11 +1,14 @@
 name: KMP Weather App CI/CD
 
-# 1. Déclencheurs : Le pipeline s'exécute à chaque Push ou Pull Request sur la branche 'main'
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+
+# On utilise NODE24 pour les actions, la version 20 est déprécié.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-test:
@@ -46,5 +49,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: weather-app-debug
-          # Le chemin où l'APK est généré par défaut dans un module Android standard
-          path: composeApp/build/outputs/apk/debug/*.apk
+          path: '**/*.apk'
